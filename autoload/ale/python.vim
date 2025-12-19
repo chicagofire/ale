@@ -4,6 +4,7 @@
 call ale#Set('python_auto_pipenv', '0')
 call ale#Set('python_auto_poetry', '0')
 call ale#Set('python_auto_uv', '0')
+call ale#Set('python_auto_pixi', '0')
 
 let s:sep = has('win32') ? '\' : '/'
 " bin is used for Unix virtualenv directories, and Scripts is for Windows.
@@ -25,6 +26,8 @@ function! ale#python#FindProjectRootIni(buffer) abort
     for l:path in ale#path#Upwards(expand('#' . a:buffer . ':p:h'))
         " If you change this, update ale-python-root documentation.
         if filereadable(l:path . '/MANIFEST.in')
+        \|| filereadable(l:path . '/pixi.toml')
+        \|| filereadable(l:path . '/pixi.lock')
         \|| filereadable(l:path . '/setup.cfg')
         \|| filereadable(l:path . '/tox.ini')
         \|| filereadable(l:path . '/.pyre_configuration.local')
@@ -203,4 +206,31 @@ endfunction
 " Detects whether a uv environment is present.
 function! ale#python#UvPresent(buffer) abort
     return findfile('uv.lock', expand('#' . a:buffer . ':p:h') . ';') isnot# ''
+endfunction
+
+" Detects whether a pixi project is present.
+function! ale#python#PixiPresent(buffer) abort
+    return findfile('pixi.lock', expand('#' . a:buffer . ':p:h') . ';') isnot# ''
+endfunction
+
+function! ale#python#PixiEnv(buffer) abort
+	let l:pixidir = finddir('.pixi', expand('#' . a:buffer . ':p:h') . ';')
+	let l:envs = split(glob(l:pixidir . '/envs/*'))
+	let l:found_lint = ''
+	let l:found_dev = ''
+	for l:item in l:envs
+		if l:item =~? '/dev$'
+			let l:found_dev = 'dev'
+		elseif l:item =~? '/lint[-_].*$'
+			let l:found_lint = get(matchlist(l:item, '/\(lint[-_].*\)$'), 1, '')
+		endif
+	endfor
+
+	if l:found_dev != ''
+		return l:found_dev
+	elseif l:found_lint != '' 
+		return l:found_lint
+	endif
+
+	return ''
 endfunction

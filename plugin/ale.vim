@@ -192,6 +192,12 @@ let g:ale_python_auto_uv = get(g:, 'ale_python_auto_uv', v:false)
 " The variables are set based on ALE's virtualenv detection.
 let g:ale_python_auto_virtualenv = get(g:, 'ale_python_auto_virtualenv', v:false)
 
+" Enable automatic detection of pixi for Python linters.
+let g:ale_python_auto_pixi = get(g:, 'ale_python_auto_pixi', 0)
+
+" Default pyright executable
+let g:ale_python_pyright_executable = get(g:, 'ale_python_pyright_executable', 'pyright-langserver')
+
 " This variable can be overridden to set the GO111MODULE environment variable.
 let g:ale_go_go111module = get(g:, 'ale_go_go111module', '')
 

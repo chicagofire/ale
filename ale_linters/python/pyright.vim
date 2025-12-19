@@ -4,6 +4,7 @@ call ale#Set('python_pyright_config', {})
 call ale#Set('python_pyright_auto_pipenv', 0)
 call ale#Set('python_pyright_auto_poetry', 0)
 call ale#Set('python_pyright_auto_uv', 0)
+call ale#Set('python_pyright_auto_pixi', 0)
 
 " Force the cwd of the server to be the same as the project root to
 " fix issues with treating local files matching first or third party library
@@ -27,7 +28,10 @@ function! ale_linters#python#pyright#GetConfig(buffer) abort
 
     if type(l:config.python) is v:t_dict
         " Automatically detect the virtualenv path and use it.
-        if !has_key(l:config.python, 'venvPath')
+	if has_key(l:config.python, 'pythonPath')
+	\&& type(l:config.python.pythonPath) is v:t_func
+	    let l:config.python.pythonPath = l:config.python.pythonPath(a:buffer)
+	elseif !has_key(l:config.python, 'venvPath')
             let l:venv = ale#python#FindVirtualenv(a:buffer)
 
             if !empty(l:venv)
@@ -65,14 +69,30 @@ function! ale_linters#python#pyright#GetExecutable(buffer) abort
         return 'uv'
     endif
 
+    if (ale#Var(a:buffer, 'python_auto_pixi') || ale#Var(a:buffer, 'python_pyright_auto_pixi'))
+    \ && ale#python#PixiPresent(a:buffer)
+        return 'pixi'
+    endif
+
     return ale#python#FindExecutable(a:buffer, 'python_pyright', ['pyright-langserver'])
 endfunction
 
 function! ale_linters#python#pyright#GetCommand(buffer) abort
     let l:executable = ale_linters#python#pyright#GetExecutable(a:buffer)
-    let l:exec_args = l:executable =~? '\(pipenv\|poetry\|uv\)$'
-    \   ? ' run pyright-langserver'
-    \   : ''
+    let l:pyright_exe = ale#Var(a:buffer, 'python_pyright_executable')
+    if (l:executable == "pixi")
+	    let l:pixi_env = ale#python#PixiEnv(a:buffer)
+	    if l:pixi_env == ''
+		let l:exec_args = ' exec ' . pyright_exe
+	    else
+	    	let l:exec_args = ' run -e ' . l:pixi_env . ' ' . pyright_exe
+	    endif
+    elseif (l:executable =~? '\(pipenv\|poetry\|uv\)$')
+	    let l:exec_args = ' run ' . pyright_exe
+    else
+	    let l:exec_args = ''
+    endif
+
     let l:env_string = ''
 
     if ale#Var(a:buffer, 'python_auto_virtualenv')

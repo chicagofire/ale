@@ -8,6 +8,7 @@ call ale#Set('python_ruff_change_directory', 1)
 call ale#Set('python_ruff_auto_pipenv', 0)
 call ale#Set('python_ruff_auto_poetry', 0)
 call ale#Set('python_ruff_auto_uv', 0)
+call ale#Set('python_ruff_auto_pixi', 0)
 
 call ale#fix#registry#Add('ruff',
 \   'ale#fixers#ruff#Fix',
@@ -29,6 +30,11 @@ function! ale_linters#python#ruff#GetExecutable(buffer) abort
     if (ale#Var(a:buffer, 'python_auto_uv') || ale#Var(a:buffer, 'python_ruff_auto_uv'))
     \ && ale#python#UvPresent(a:buffer)
         return 'uv'
+    endif
+
+    if (ale#Var(a:buffer, 'python_auto_pixi') || ale#Var(a:buffer, 'python_ruff_auto_pixi'))
+    \ && ale#python#PixiPresent(a:buffer)
+        return 'pixi'
     endif
 
     return ale#python#FindExecutable(a:buffer, 'python_ruff', ['ruff'])
@@ -63,9 +69,18 @@ endfunction
 
 function! ale_linters#python#ruff#GetCommand(buffer, version) abort
     let l:executable = ale_linters#python#ruff#GetExecutable(a:buffer)
-    let l:exec_args = l:executable =~? '\(pipenv\|poetry\|uv\)$'
-    \   ? ' run ruff'
-    \   : ''
+    if (l:executable == "pixi")
+	    let l:pixi_env = ale#python#PixiEnv(a:buffer)
+	    if l:pixi_env == ''
+		let l:exec_args = ' exec ruff'
+	    else
+	    	let l:exec_args = ' run -e ' . l:pixi_env . ' ruff'
+	    endif
+    elseif (l:executable =~? '\(pipenv\|poetry\|uv\)$')
+	    let l:exec_args = ' run ruff'
+    else
+	    let l:exec_args = ''
+    endif
 
     " NOTE: ruff 0.3.0 deprecates `ruff <path>` in favor of `ruff check <path>`
     let l:exec_args = l:exec_args
